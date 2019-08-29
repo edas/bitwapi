@@ -18,21 +18,23 @@ RSpec.describe Bitwapi::Crypto do
     context "when email: 'nobody@example.com' and password: 'this is a password'" do
       let(:email) { 'nobody@example.com' }
       let(:password) { 'this is a password' }
-      it { expect(Base64.strict_encode64(subject.make_master_key(password, email))).to eq(b64_key) }
+      let(:kdf) { 0 }
+      let(:iterations) { 5000 }
+      it { expect(Base64.strict_encode64(subject.make_master_key(password, email, kdf, iterations))).to eq(b64_key) }
 
       context "when a case change in email" do
         let(:changed_email) { 'NOBODY@example.com' }
         it "should not change the result" do
-          previous_result = subject.make_master_key(password, email)
-          expect(subject.make_master_key(password, changed_email)).to eq(previous_result)
+          previous_result = subject.make_master_key(password, email, kdf, iterations)
+          expect(subject.make_master_key(password, changed_email, kdf, iterations)).to eq(previous_result)
         end
       end
 
       context "when a change in password" do
         let(:changed_password) { 'this IS a password' }
         it "should change the result" do
-          previous_result = subject.make_master_key(password, email)
-          expect(subject.make_master_key(changed_password, email)).not_to eq(previous_result)
+          previous_result = subject.make_master_key(password, email, kdf, iterations)
+          expect(subject.make_master_key(changed_password, email, kdf, iterations)).not_to eq(previous_result)
         end
       end
     end
@@ -46,21 +48,23 @@ RSpec.describe Bitwapi::Crypto do
     context "when salt: 'nobody@example.com' and password: 'this is a password'" do
       let(:salt) { 'nobody@example.com' }
       let(:password) { 'this is a password' }
-      it { expect(Base64.strict_encode64(subject.make_key(password, salt))).to eq(b64_key) }
+      let(:kdf) { 0 }
+      let(:iterations) { 5000 }
+      it { expect(Base64.strict_encode64(subject.make_key(password, salt, kdf, iterations))).to eq(b64_key) }
 
       context "when a change in salt" do
         let(:changed_salt) { 'NOBODY@example.com' }
         it "should change the result" do
-          previous_result = subject.make_key(password, salt)
-          expect(subject.make_key(password, changed_salt)).not_to eq(previous_result)
+          previous_result = subject.make_key(password, salt, kdf, iterations)
+          expect(subject.make_key(password, changed_salt, kdf, iterations)).not_to eq(previous_result)
         end
       end
 
       context "when a change in password" do
         let(:changed_password) { 'this IS a password' }
         it "should change the result" do
-          previous_result = subject.make_key(password, salt)
-          expect(subject.make_key(changed_password, salt)).not_to eq(previous_result)
+          previous_result = subject.make_key(password, salt, kdf, iterations)
+          expect(subject.make_key(changed_password, salt, kdf, iterations)).not_to eq(previous_result)
         end
       end
     end
@@ -73,21 +77,23 @@ RSpec.describe Bitwapi::Crypto do
     context "when salt: 'user@example.com' and password: 'secret password'" do
       let(:salt) { 'user@example.com' }
       let(:password) { 'secret password' }
-      it { expect(subject.hash_password(password, salt)).to eq(b64_key) }
+      let(:kdf) { 0 }
+      let(:iterations) { 5000 }
+      it { expect(subject.hash_password(password, salt, kdf, iterations)).to eq(b64_key) }
 
       context "when a change in salt" do
         let(:changed_salt) { 'NOBODY@example.com' }
         it "should change the result" do
-          previous_result = subject.hash_password(password, salt)
-          expect(subject.hash_password(password, changed_salt)).not_to eq(previous_result)
+          previous_result = subject.hash_password(password, salt, kdf, iterations)
+          expect(subject.hash_password(password, changed_salt, kdf, iterations)).not_to eq(previous_result)
         end
       end
 
       context "when a change in password" do
         let(:changed_password) { 'this IS a password' }
         it "should change the result" do
-          previous_result = subject.hash_password(password, salt)
-          expect(subject.hash_password(changed_password, salt)).not_to eq(previous_result)
+          previous_result = subject.hash_password(password, salt, kdf, iterations)
+          expect(subject.hash_password(changed_password, salt, kdf, iterations)).not_to eq(previous_result)
         end
       end
     end
@@ -95,7 +101,7 @@ RSpec.describe Bitwapi::Crypto do
   end
 
   describe "#make_enc_key" do
-    let(:internal_key) { subject.make_key('this is a password', 'nobody@example.com') }
+    let(:internal_key) { subject.make_key('this is a password', 'nobody@example.com', 0, 5000) }
     context "when with internal key derived from #make_key" do
       it "should be a decodable_cipher_string" do
         enc_key = subject.make_enc_key(internal_key)
@@ -123,18 +129,20 @@ RSpec.describe Bitwapi::Crypto do
   describe "#decrypted_key" do
     let(:email) { "this.is.me@example.com" }
     let(:password) { "this is not a good password" }
+    let(:kdf) { 0 }
+    let(:iterations) { 5000 }
     let(:master_key) { Base64.decode64("Lqqg1CvuUp6Lq7LuU3ktpus8FXMSvloTXHnFNLlI8OI=") }
     let(:encrypted_key) { "0.Ah1dfJ//WjegyKBNl4Ix+A==|CHOvDWcsrHSIHuUj8hcCZpvB5+54BKf4eZbjpyo89p/Ziqcgzmrg2Js4mH9uYlzIZZk0Byc8DhAqJqRFPBfFADFGqZmAcKoFoj3++wav3B0=" }
     let(:decrypted_key) { Base64.decode64("jahq8PuXjiqJ3v6v//kSVaAwt/hCkhcjifiKVQWaraHz95N2I7Q0mNKbt1mStRvxhPmJGF24ENI020i2FBFuoA==")}
-    
+
     context "when a new key from 'this.is.me@example.com' and 'this is not a good password'" do
       it "should be able to recover a decrypted key" do
-        expect{ subject.decrypted_key(encrypted_key, email, password) }.not_to raise_error
+        expect{ subject.decrypted_key(encrypted_key, email, password, kdf, iterations) }.not_to raise_error
       end
       it "should be of 64 bytes length" do
-        expect( subject.decrypted_key(encrypted_key, email, password) ).to satisfy {|s| s.bytes.length == 64 }
+        expect( subject.decrypted_key(encrypted_key, email, password, kdf, iterations) ).to satisfy {|s| s.bytes.length == 64 }
       end
-      it { expect( subject.decrypted_key(encrypted_key, email, password) ).to eq(decrypted_key) }
+      it { expect( subject.decrypted_key(encrypted_key, email, password, kdf, iterations) ).to eq(decrypted_key) }
     end
   end
 
@@ -172,7 +180,7 @@ RSpec.describe Bitwapi::Crypto do
       it { expect(subject.compose_cipher_string(type, iv, ct)).to eq(cipherstring) }
     end
 
-    context "with a cipherstring with a mac" do 
+    context "with a cipherstring with a mac" do
       let(:cipherstring) { "2.ftF0nH3fGtuqVckLZuHGjg==|u0VRhH24uUlVlTZd/uD1lA==|XhBhBGe7or/bXzJRFWLUkFYqauUgxksCrRzNmJyigfw=" }
       let(:type) { 2 }
       let(:iv) { Base64.decode64("ftF0nH3fGtuqVckLZuHGjg==") }
@@ -212,12 +220,14 @@ RSpec.describe Bitwapi::Crypto do
     context "when email is 'nobody@example.com' and password is 'e3d5.fr'" do
       let(:email) { 'nobody@example.com'}
       let(:password) { 'bitwapi API' }
+      let(:kdf) { 0 }
+      let(:iterations) { 5000 }
       let(:text) { 'https://e3d5.fr/'}
       it "create a key, encrypt, decrypt" do
-        master_hash = subject.hash_password(password, email)
-        master_key = subject.make_master_key(password, email)
+        master_hash = subject.hash_password(password, email, kdf, iterations)
+        master_key = subject.make_master_key(password, email, kdf, iterations)
         encrypted_key = subject.make_enc_key(master_key)
-        decrypted_key = subject.decrypted_key(encrypted_key, email, password)
+        decrypted_key = subject.decrypted_key(encrypted_key, email, password, kdf, iterations)
         encrypted_text = subject.encrypt(text, decrypted_key)
         decrypted_text = subject.decrypt(encrypted_text, decrypted_key)
         expect(decrypted_text).to eq(text)
@@ -241,7 +251,7 @@ RSpec.describe Bitwapi::Crypto do
       end
     end
 
-    context "with a cipherstring with a mac" do 
+    context "with a cipherstring with a mac" do
       let(:cipherstring) { "2.ftF0nH3fGtuqVckLZuHGjg==|u0VRhH24uUlVlTZd/uD1lA==|XhBhBGe7or/bXzJRFWLUkFYqauUgxksCrRzNmJyigfw=" }
       let(:type) { 2 }
       let(:iv) { "ftF0nH3fGtuqVckLZuHGjg==" }

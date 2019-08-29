@@ -65,11 +65,13 @@ module Bitwapi
       }
     end
 
-    def register(email, password, name:nil, hint:nil, access_token:nil)
+    def register(email, password, name:nil, hint:nil, access_token:nil, kdf:nil, iterations:nil)
+      kdf ||= Bitwapi::Crypto::PBKDF2_SHA256
+      iterations ||= Bitwapi::Crypto::DEFAULT_ITERATIONS[kdf]
       destination = "#{@base_url}/accounts/register"
-      internal_key = @crypto.make_master_key(password, email)
+      internal_key = @crypto.make_master_key(password, email, kdf, iterations)
       key = @crypto.make_enc_key(internal_key)
-      master_password_hash = @crypto.hash_password(password, email)
+      master_password_hash = @crypto.hash_password(password, email, kdf, iterations)
       transport.json_post(destination, {
         name: name,
         email: email,

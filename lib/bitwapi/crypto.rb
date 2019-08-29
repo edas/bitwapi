@@ -22,18 +22,36 @@ module Bitwapi
     RSA2048_OAEPSHA256_HMACSHA256_B64 = 5
     RSA2048_OAEPSHA1_HMACSHA256_B64   = 6
 
-    def make_master_key(password, email)
-      make_key(password, email.downcase)
+    PBKDF2_SHA256 = 0
+    DEFAULT_ITERATIONS = {
+      PBKDF2_SHA256 => 100_000
+    }.freeze
+    ITERATION_RANGES = {
+      PBKDF2_SHA256 => 5_000..1_000_000
+    }.freeze
+
+    def make_master_key(password, email, kdf_type, kdf_iterations)
+      make_key(password, email.downcase, kdf_type, kdf_iterations)
     end
 
-    def make_key(password, salt)
-      PBKDF2.new(:password => password, :salt => salt,
-        :iterations => 5000, :hash_function => OpenSSL::Digest::SHA256,
-        :key_length => (256/8)).bin_string
+    def make_key(password, salt, kdf_type, kdf_iterations)
+      case kdf_type
+      when PBKDF2_SHA256
+        range = ITERATION_RANGES[kdf_type]
+        unless range.include?(kdf_iterations)
+          raise "PBKDF2 iterations must be between #{range}"
+        end
+
+        PBKDF2.new(:password => password, :salt => salt,
+          :iterations => kdf_iterations, :hash_function => OpenSSL::Digest::SHA256,
+          :key_length => (256/8)).bin_string
+      else
+        raise "unknown kdf type #{kdf_type.inspect}"
+      end
     end
 
-    def hash_password(password, salt)
-      key = make_key(password, salt)
+    def hash_password(password, salt, kdf_type, kdf_iterations)
+      key = make_master_key(password, salt, kdf_type, kdf_iterations)
       Base64.strict_encode64(PBKDF2.new(:password => key, :salt => password,
         :iterations => 1, :key_length => 256/8,
         :hash_function => OpenSSL::Digest::SHA256).bin_string)
@@ -80,7 +98,7 @@ module Bitwapi
       key, mac_key = split_key(key) if mac_key.nil?
 
       type, iv, ct, mac = decompose_cipher_string(str)
-      
+
       case type
       when AESCBC256_B64, AESCBC256_HMACSHA256_B64
 
@@ -104,8 +122,8 @@ module Bitwapi
       end
     end
 
-    def decrypted_key(enc_key, email, password)
-      master_key = make_master_key(password, email)
+    def decrypted_key(enc_key, email, password, kdf_type, kdf_iterations)
+      master_key = make_master_key(password, email, kdf_type, kdf_iterations)
       decrypt(enc_key, master_key, nil)
     end
 

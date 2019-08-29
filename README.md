@@ -33,7 +33,7 @@ api = Bitwapi::API.official
 Or with your own unofficial Bitwarden-ruby instance:
 ```ruby
 require 'bitwapi'
-api = Bitwapi.API.unofficial("https://mybitwarden.example.com")
+api = Bitwapi::API.unofficial("https://mybitwarden.example.com")
 ```
 
 ### Register a new account

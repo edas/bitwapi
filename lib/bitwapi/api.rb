@@ -31,7 +31,7 @@ module Bitwapi
     def self.unofficial(base, options={})
       urls = {
         base_url: "#{base}/api",
-        identity_url: "#{base}/identity_api",
+        identity_url: "#{base}/identity",
         icons_url: "#{base}/icons",
       }
       self.new(urls.merge(default_options).merge(options))

@@ -168,6 +168,7 @@ module Bitwapi
         @refresh_token = resp[:refresh_token]
         @expire_at = resp[:expire_at]
       end
+      credentials
     end
 
   end

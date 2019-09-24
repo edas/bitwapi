@@ -6,13 +6,13 @@ module Bitwapi
   class Cipher
 
     TYPE = nil
-    ATTRIBUTES = [ ]
+    ATTRIBUTES = []
 
-    def empty_block 
-      {      
+    def empty_block
+      {
         CollectionIds: [],
         FolderId: nil,
-        Favorite: true,
+        Favorite: false,
         Edit: true,
         Type: self.class::TYPE,
         Id: nil,
@@ -21,7 +21,7 @@ module Bitwapi
         Attachments: nil,
         OrganizationUseTotp: false,
         RevisionDate: nil,
-        Object: "cipherDetails",
+        Object: "cipher"
       }
     end
 
@@ -29,14 +29,14 @@ module Bitwapi
       {
         Name: nil,
         Notes: nil,
-        Fields: [ ],
+        Fields: []
       }.merge( self.class::ATTRIBUTES.map {|attribute| [attribute, nil] }.to_h )
     end
 
     def self.attributes(*names)
       self.const_set(:ATTRIBUTES, names)
-      names.each do |title| 
-        underscore = title.to_s.gsub(/([A-Z])([A-Z]*[a-z]*)/){"_#{$1.downcase}#{$2}"}[1..-1]
+      names.each do |title|
+        underscore = title.to_s.gsub(/([A-Z])([A-Z]*[a-z]*)/) { "_#{$1.downcase}#{$2}" }[1..-1]
         define_method(underscore.to_sym) { @data[:Data][title.to_sym] }
       end
     end
@@ -54,7 +54,7 @@ module Bitwapi
       klass.new(data)
     end
 
-    def initialize(data, &block)
+    def initialize(data)
       @data = data
     end
 
@@ -96,7 +96,7 @@ module Bitwapi
     end
 
     def revision_date
-      @data[:RevisionDate] ? Time.parse(@data[:RevisionDate]+"Z") : nil
+      @data[:RevisionDate] ? Time.parse(@data[:RevisionDate]) : nil
     end
 
     def attachments

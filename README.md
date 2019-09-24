@@ -33,26 +33,26 @@ api = Bitwapi::API.official
 Or with your own unofficial Bitwarden-ruby instance:
 ```ruby
 require 'bitwapi'
-api = Bitwapi.API.unofficial("https://mybitwarden.example.com")
+api = Bitwapi::API.unofficial("https://mybitwarden.example.com")
 ```
 
 ### Register a new account
 
-```
+```ruby
 # hint and name are optional
 api.register(email, password, hint:'hint for password', name:'user name')
-
 ```
 
 ### Login a new device
 
-```
+```ruby
 # device_name is optional (default: bitwapi/version)
 api.login(email, password, device_name: "my device")
 ```
 
 You probably shouldn't login a new device each time you want to access your vault (please don't, at least if you are using the official Bitwarden servers. I don't want them to ban this unofficial client because of abuse from your part). Once you have credentials, save them and use them for future access:
-```
+
+```ruby
 require 'json'
 require 'bitwapi'
 
@@ -66,7 +66,6 @@ File.write("mycredentials.json", credentials.to_json)
 json_credentials = File.read("mycredentials.json")
 credentials = JSON.parse(json_credentials, symbolize_names: true)
 api = Bitwapi::API.new(credentials)
-
 ```
 
 Bitwapi automaticaly refresh the access token when needed. You do not have to care about all that.
@@ -74,14 +73,15 @@ Bitwapi automaticaly refresh the access token when needed. You do not have to ca
 
 ### Get the vault from server
 
-```
+```ruby
 api = Bitwapi::API.new(credentials)
 vault = api.get_vault
 ```
 
 
 ### Get ciphers from the vault
-```
+
+```ruby
 # all ciphers
 ciphers = vault.ciphers.to_a
 id = ciphers[0].id

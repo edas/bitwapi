@@ -14,9 +14,11 @@ module Bitwapi
       unlock!(password) if password
     end
 
-    def unlock!(password)
+    def unlock!(password, kdf:nil, iterations:nil)
+      kdf ||= Bitwapi::Crypto::PBKDF2_SHA256
+      iterations ||= Bitwapi::Crypto::DEFAULT_ITERATIONS[kdf]
       email = @data[:Profile][:Email]
-      @key = @crypto.decrypted_key(@data[:Profile][:Key], email, password)
+      @key = @crypto.decrypted_key(@data[:Profile][:Key], email, password, kdf, iterations)
       true
     end
 

@@ -31,7 +31,7 @@ module Bitwapi
     def self.unofficial(base, options={})
       urls = {
         base_url: "#{base}/api",
-        identity_url: "#{base}/identity_api",
+        identity_url: "#{base}/identity",
         icons_url: "#{base}/icons",
       }
       self.new(urls.merge(default_options).merge(options))
@@ -65,12 +65,14 @@ module Bitwapi
       }
     end
 
-    def register(email, password, name:nil, hint:nil, access_token:nil)
+    def register(email, password, name:nil, hint:nil, access_token:nil, kdf:nil, iterations:nil)
+      kdf ||= Bitwapi::Crypto::PBKDF2_SHA256
+      iterations ||= Bitwapi::Crypto::DEFAULT_ITERATIONS[kdf]
       destination = "#{@base_url}/accounts/register"
-      internal_key = @crypto.make_master_key(password, email)
+      internal_key = @crypto.make_master_key(password, email, kdf, iterations)
       key = @crypto.make_enc_key(internal_key)
-      master_password_hash = @crypto.hash_password(password, email)
-      transport.json_post(destination, {
+      master_password_hash = @crypto.hash_password(password, email, kdf, iterations)
+      @transport.json_post(destination, {
         name: name,
         email: email,
         masterPasswordHash: master_password_hash,
@@ -84,9 +86,21 @@ module Bitwapi
       SecureRandom.uuid
     end
 
-    def login(email, password, device_type: @device_type, device_identifier: generate_identifier, device_name: @agent_string, device_push_token: "", client_id:"browser", two_factor_provider: nil, two_factor_token: nil, two_factor_remember: 1)
+    def prelogin(email)
+      destination = "#{@base_url}/accounts/prelogin"
+      @transport.json_post(destination, {
+        email: email
+      }, { 'Authorization' => "none"})
+    end
+
+    def login(email, password, device_type: @device_type, device_identifier: generate_identifier, device_name: @agent_string, device_push_token: "", client_id:"browser", two_factor_provider: nil, two_factor_token: nil, two_factor_remember: 1, kdf_type:nil, kdf_iterations:nil)
+      if kdf_type.nil? || kdf_iterations.nil?
+        data = prelogin(email)
+        kdf_type = data[:Kdf] || Bitwapi::Crypto::PBKDF2_SHA256
+        kdf_iterations = data[:KdfIterations] || Bitwapi::Crypto::DEFAULT_ITERATIONS[kdf_type]
+      end
       destination = "#{@identity_url}/connect/token"
-      master_password_hash = @crypto.hash_password(password, email)
+      master_password_hash = @crypto.hash_password(password, email, kdf_type, kdf_iterations)
       grant = {
         grant_type: 'password',
         username: email,
@@ -105,12 +119,13 @@ module Bitwapi
           twoFactorRemember: two_factor_remember,
         })
       end
-      transport.post(destination, grant, { 'Authorization' => "none"}).tap do |resp|
+      @transport.post(destination, grant, { 'Authorization' => "none"}).tap do |resp|
         resp[:expire_at] = get_token_expiration(resp[:access_token])
         @access_token = resp[:access_token]
         @refresh_token = resp[:refresh_token]
         @expire_at = resp[:expire_at]
       end
+      credentials
     end
 
     def get_valid_token
@@ -143,7 +158,7 @@ module Bitwapi
 
     def refresh_token
       destination = "#{@identity_url}/connect/token"
-      transport.post(destination, {
+      @transport.post(destination, {
         "grant_type": "refresh_token",
         "client_id": "browser",
         "refresh_token": @refresh_token,
@@ -153,6 +168,7 @@ module Bitwapi
         @refresh_token = resp[:refresh_token]
         @expire_at = resp[:expire_at]
       end
+      credentials
     end
 
   end
